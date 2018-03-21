@@ -184,7 +184,7 @@ void CBingTodayImageDlg::CheckAutoRun()
 	HKEY hKey;
 	TCHAR szPath[MAX_PATH] = {};
 	DWORD dwLen = MAX_PATH * sizeof(TCHAR);
-	LPCTSTR lpszName = TEXT("QuickExec");
+	LPCTSTR lpszName = TEXT("BingTodayImage");
 	auto nRes = RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
 		0, KEY_ALL_ACCESS, &hKey);
 	if (nRes != ERROR_SUCCESS) {
