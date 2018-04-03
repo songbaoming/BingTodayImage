@@ -81,11 +81,6 @@ BOOL CBingTodayImageApp::InitInstance()
 		*p = 0;
 	m_strModuleDir = szText;
 
-	SYSTEMTIME stm;
-	GetLocalTime(&stm);
-	_stprintf_s(szText, TEXT("%u%02u%02u"), stm.wYear, stm.wMonth, stm.wDay);
-	auto strDay = GetProfileString(TEXT("setting"), TEXT("BingTodayImage"));
-	m_bGetBingTodayImage = strDay != szText;
 	m_bAotuRun = GetProfileInt(TEXT("setting"), TEXT("AutoRun"), 0);
 
 	auto pDlg = new CBingTodayImageDlg;

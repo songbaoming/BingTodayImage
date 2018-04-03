@@ -15,7 +15,7 @@ public:
 	LPCSTR GetDesc(){ return m_strDesc.c_str(); }
 
 private:
-	bool ConnectBing();
+	bool ConnectBing(LPCSTR pHost);
 	char *HttpGet(LPCSTR lpszFile, int &nDataLen);
 	char *GetHttpItamData(LPSTR pHttpHdr, LPCSTR lpszItemName = nullptr)
 	{

@@ -37,30 +37,43 @@ CBingTodayImage::~CBingTodayImage(void)
 
 bool CBingTodayImage::GetTodayImage(LPCTSTR lpszSavePath, bool bSetAsWallpaper /*= true*/)
 {
-	if(!ConnectBing())
+	static PCSTR s_pHost[] = {
+		"www.cn.bing.com",
+		"www.bing.com",
+		NULL
+	};
+	int i = 0;
+	while(s_pHost[i] && !ConnectBing(s_pHost[i])) ++i;
+	if(!s_pHost[i])
 		return false;
 	int nLen;
 	auto pHttp = HttpGet("/HPImageArchive.aspx?format=js&idx=0&n=1&nc=1421741858945&pid=hp", nLen);
 	if(!pHttp)
 		return false;
+
 	int nDataLen;
-
 	auto pData = GetHttpData(pHttp, nLen, nDataLen);
-	if(!pData)
+	if (!pData)
 		return false;
-	rapidjson::Document doc;
-	doc.Parse(pData);
-	auto &images = doc["images"];
-	auto &arry = images[0];
-	auto url = arry["url"].GetString();
-	m_strDesc = arry["copyright"].GetString();
+	try {
+		rapidjson::Document doc;
+		doc.Parse(pData);
+		auto &images = doc["images"];
+		auto &arry = images[0];
+		auto url = arry["url"].GetString();
+		m_strDesc = arry["copyright"].GetString();
+		pHttp = HttpGet(url, nLen);
+		if (!pHttp)
+			return false;
+	}
+	catch (...) {
+		return false;
+	}
 
-	pHttp = HttpGet(url, nLen);
-	if(!pHttp)
-		return false;
+	
 	pData = GetHttpData(pHttp, nLen, nDataLen);
 	auto pFileSize = GetHttpItamData(pHttp, "Content-Length");
-	if(!pData || !pFileSize)
+	if (!pData || !pFileSize)
 		return false;
 	int nFileSize = atoi(pFileSize);
 
@@ -78,17 +91,19 @@ bool CBingTodayImage::GetTodayImage(LPCTSTR lpszSavePath, bool bSetAsWallpaper /
 		CImage image;
 		image.Load(lpszSavePath);
 		image.Save(lpszSavePath);
+#ifndef DEBUG
 		SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, (PVOID)lpszSavePath, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+#endif // !DEBUG
 	}
 	return true;
 }
 
-bool CBingTodayImage::ConnectBing()
+bool CBingTodayImage::ConnectBing(LPCSTR pHost)
 {
 	ADDRINFO *pRes = nullptr, hints = {};
 	hints.ai_family = AF_INET;
 
-	auto nRes = getaddrinfo("www.cn.bing.com", "http", &hints, &pRes);
+	auto nRes = getaddrinfo(pHost, "http", &hints, &pRes);
 	if(nRes)
 		return false;
 
@@ -135,7 +150,24 @@ char * CBingTodayImage::HttpGet(LPCSTR lpszFile, int &nDataLen)
 		return nullptr;
 
 	nDataLen = recv(m_hBing, m_pBuff, BUFF_LEN, 0);
-	return (nDataLen != SOCKET_ERROR && strstr(m_pBuff, "200 OK")) ? m_pBuff : nullptr;
+	char *pData = nullptr;
+	if (nDataLen != SOCKET_ERROR && strstr(m_pBuff, "200 OK")) {
+		pData = GetHttpItamData(m_pBuff);
+		auto pDataLen = GetHttpItamData(m_pBuff, "Content-Length");
+		if (pData && pDataLen) {
+			int nHeaderLen = pData - m_pBuff;
+			int nDataRcvLen = atoi(pDataLen);
+			int nDataRailLen = nDataLen - nHeaderLen;
+			while (nDataRcvLen < nDataRailLen && nDataLen < BUFF_LEN) {
+				int nLen = recv(m_hBing, m_pBuff + nDataLen, BUFF_LEN - nDataLen, 0);
+				if (!nLen || nDataLen != SOCKET_ERROR)
+					break;
+				nDataRcvLen += nLen;
+				nDataLen += nLen;
+			}
+		}
+	}
+	return pData ? m_pBuff : nullptr;
 }
 
 char * CBingTodayImage::GetHttpData(LPSTR pHttp, int nLen, int &nDataLen)

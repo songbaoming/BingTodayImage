@@ -28,7 +28,6 @@ public:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	bool m_bGetBingTodayImage;
 	bool m_bAotuRun;
 	HANDLE m_hMutex;
 	CString m_strModuleDir;

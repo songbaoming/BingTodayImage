@@ -35,15 +35,19 @@ protected:
 public:
 	static UINT s_msgTaskBarRestart;
 	NOTIFYICONDATA m_nid;
+	CString m_strLastChangeData;
+	CString m_strImageDesc;
 
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	void CheckAutoRun();
 	afx_msg LRESULT OnTaskBarRestart(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnNotifyicon(WPARAM wParam, LPARAM lParam);
-
+	afx_msg LRESULT OnGetBingImage(WPARAM wParam, LPARAM lParam);
+	void SetChangeImageTimer(SYSTEMTIME &stmNow);
 	afx_msg void OnNotifyAutorun();
 	afx_msg void OnNotifyExit();
 	virtual void OnOK();
 	virtual void OnCancel();
 	afx_msg void OnDestroy();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };

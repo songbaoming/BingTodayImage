@@ -12,7 +12,39 @@
 #define new DEBUG_NEW
 #endif
 
+#define WM_GETBINGIMAGE				(WM_USER + 1024)
 
+
+void IncDay(SYSTEMTIME &stm)
+{
+	if (stm.wMonth == 2) {
+		if (stm.wDay == 29 || (stm.wDay == 28 && (stm.wDay % 400 && (stm.wYear % 4 || !(stm.wYear % 100))))) {
+			stm.wDay = 1;
+			stm.wMonth += 1;
+		}
+		else {
+			stm.wDay += 1;
+		}
+	}
+	else if (stm.wDay == 30 && (stm.wMonth == 4 || stm.wMonth == 6 || stm.wMonth == 9 || stm.wMonth == 11)) {
+		stm.wDay = 1;
+		stm.wMonth += 1;
+	}
+	else if (stm.wDay == 31 && (stm.wMonth == 1 || stm.wMonth == 3 || stm.wMonth == 5 || stm.wMonth == 7 ||
+		stm.wMonth == 8 || stm.wMonth == 10 || stm.wMonth == 12)) {
+		stm.wDay = 1;
+		if (stm.wMonth == 12) {
+			stm.wMonth = 1;
+			stm.wYear += 1;
+		}
+		else
+			stm.wMonth += 1;
+
+	}
+	else {
+		stm.wDay += 1;
+	}
+}
 
 void WINAPI APCFunc(ULONG_PTR dwParam)
 {
@@ -32,16 +64,8 @@ UINT GetBingTodayImage(void *pParam)
 			if (nIndex > 0)
 				strTemp = strTemp.Left(nIndex);
 
-			pdlg->m_nid.uFlags |= NIF_INFO;
-			pdlg->m_nid.dwInfoFlags = NIIF_INFO;
-			pdlg->m_nid.uTimeout = 1000;
-			_tcscpy_s(pdlg->m_nid.szInfoTitle, TEXT("必应今日美图"));
-			_tcscpy_s(pdlg->m_nid.szInfo, strTemp);
-			Shell_NotifyIcon(NIM_MODIFY, &pdlg->m_nid);
-			SYSTEMTIME stm;
-			GetLocalTime(&stm);
-			strTemp.Format(TEXT("%u%02u%02u"), stm.wYear, stm.wMonth, stm.wDay);
-			theApp.WriteProfileString(TEXT("setting"), TEXT("BingTodayImage"), strTemp);
+			pdlg->SendMessage(WM_GETBINGIMAGE, (WPARAM)(LPCTSTR)strTemp);
+			
 			break;
 		}
 		if (WAIT_IO_COMPLETION == SleepEx(3000, TRUE))
@@ -73,7 +97,9 @@ BEGIN_MESSAGE_MAP(CBingTodayImageDlg, CDialogEx)
 	ON_REGISTERED_MESSAGE(s_msgTaskBarRestart, &CBingTodayImageDlg::OnTaskBarRestart)
 	ON_COMMAND(ID_NOTIFY_AUTORUN, &CBingTodayImageDlg::OnNotifyAutorun)
 	ON_COMMAND(ID_NOTIFY_EXIT, &CBingTodayImageDlg::OnNotifyExit)
+	ON_MESSAGE(WM_GETBINGIMAGE, &CBingTodayImageDlg::OnGetBingImage)
 	ON_WM_DESTROY()
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -119,13 +145,9 @@ BOOL CBingTodayImageDlg::OnInitDialog()
 
 	CheckAutoRun();
 
-	if (theApp.m_bGetBingTodayImage) {
-		m_pImageThread = AfxBeginThread(GetBingTodayImage, this, 0, 0, CREATE_SUSPENDED);
-		if (m_pImageThread) {
-			m_pImageThread->m_bAutoDelete = FALSE;
-			m_pImageThread->ResumeThread();
-		}
-	}
+	m_strLastChangeData = theApp.GetProfileString(TEXT("setting"), TEXT("BingTodayImage"));
+	SetTimer(0, 1000, nullptr);
+	
 	ShowWindow(SW_HIDE);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -234,6 +256,41 @@ LRESULT CBingTodayImageDlg::OnNotifyicon(WPARAM wParam, LPARAM lParam)
 }
 
 
+LRESULT CBingTodayImageDlg::OnGetBingImage(WPARAM wParam, LPARAM lParam)
+{
+	ASSERT(wParam);
+
+	m_strImageDesc = (LPCTSTR)wParam;
+	m_nid.uFlags |= NIF_INFO;
+	m_nid.dwInfoFlags = NIIF_INFO;
+	m_nid.uTimeout = 1000;
+	_tcscpy_s(m_nid.szInfoTitle, TEXT("必应今日美图"));
+	_tcscpy_s(m_nid.szInfo, m_strImageDesc);
+	Shell_NotifyIcon(NIM_MODIFY, &m_nid);
+
+	SYSTEMTIME stm;
+	GetLocalTime(&stm);
+	m_strLastChangeData.Format(TEXT("%u%02u%02u"), stm.wYear, stm.wMonth, stm.wDay);
+	theApp.WriteProfileString(TEXT("setting"), TEXT("BingTodayImage"), m_strLastChangeData);
+
+	SetChangeImageTimer(stm);
+	return 0;
+}
+
+void CBingTodayImageDlg::SetChangeImageTimer(SYSTEMTIME &stmNow)
+{
+	DWORD dwElapse;
+	LARGE_INTEGER liNow, liNext;
+
+	SystemTimeToFileTime(&stmNow, (PFILETIME)&liNow);
+	stmNow.wHour = 8;
+	stmNow.wMinute = stmNow.wSecond = stmNow.wMilliseconds = 0;
+	IncDay(stmNow);
+	SystemTimeToFileTime(&stmNow, (PFILETIME)&liNext);
+	dwElapse = (liNext.QuadPart - liNow.QuadPart) / 10000;
+	SetTimer(0, dwElapse, nullptr);
+}
+
 void CBingTodayImageDlg::OnNotifyAutorun()
 {
 	theApp.m_bAotuRun = !theApp.m_bAotuRun;
@@ -269,4 +326,28 @@ void CBingTodayImageDlg::OnDestroy()
 		delete m_pImageThread;
 	}
 	Shell_NotifyIcon(NIM_DELETE, &m_nid);
+}
+
+
+void CBingTodayImageDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 0) {
+		KillTimer(nIDEvent);
+		SYSTEMTIME stm;
+		TCHAR szText[12];
+		GetLocalTime(&stm);
+		_stprintf_s(szText, TEXT("%u%02u%02u"), stm.wYear, stm.wMonth, stm.wDay);
+		if (m_strLastChangeData != szText) {
+			if (m_pImageThread)
+				delete m_pImageThread;
+			m_pImageThread = AfxBeginThread(GetBingTodayImage, this, 0, 0, CREATE_SUSPENDED);
+			if (m_pImageThread) {
+				m_pImageThread->m_bAutoDelete = FALSE;
+				m_pImageThread->ResumeThread();
+			}
+		}
+		else
+			SetChangeImageTimer(stm);
+	}
+	CDialogEx::OnTimer(nIDEvent);
 }
