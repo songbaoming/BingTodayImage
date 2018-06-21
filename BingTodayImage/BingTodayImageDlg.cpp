@@ -270,8 +270,10 @@ LRESULT CBingTodayImageDlg::OnGetBingImage(WPARAM wParam, LPARAM lParam)
 
 	SYSTEMTIME stm;
 	GetLocalTime(&stm);
+#ifndef DEBUG
 	m_strLastChangeData.Format(TEXT("%u%02u%02u"), stm.wYear, stm.wMonth, stm.wDay);
 	theApp.WriteProfileString(TEXT("setting"), TEXT("BingTodayImage"), m_strLastChangeData);
+#endif // !DEBUG
 
 	SetChangeImageTimer(stm);
 	return 0;

@@ -138,6 +138,7 @@ bool CBingTodayImage::ConnectBing(LPCSTR pHost)
 
 char * CBingTodayImage::HttpGet(LPCSTR lpszFile, int &nDataLen)
 {
+	bool bRet = false;
 	if(!m_pBuff){
 		m_pBuff = new char[BUFF_LEN];
 		if(!m_pBuff)
@@ -155,19 +156,19 @@ char * CBingTodayImage::HttpGet(LPCSTR lpszFile, int &nDataLen)
 		pData = GetHttpItamData(m_pBuff);
 		auto pDataLen = GetHttpItamData(m_pBuff, "Content-Length");
 		if (pData && pDataLen) {
-			int nHeaderLen = pData - m_pBuff;
-			int nDataRcvLen = atoi(pDataLen);
-			int nDataRailLen = nDataLen - nHeaderLen;
+			int nDataRailLen = atoi(pDataLen);
+			int nDataRcvLen = nDataLen - (pData - m_pBuff);
 			while (nDataRcvLen < nDataRailLen && nDataLen < BUFF_LEN) {
 				int nLen = recv(m_hBing, m_pBuff + nDataLen, BUFF_LEN - nDataLen, 0);
-				if (!nLen || nDataLen != SOCKET_ERROR)
+				if (!nLen || nLen == SOCKET_ERROR)
 					break;
 				nDataRcvLen += nLen;
 				nDataLen += nLen;
 			}
+			bRet = (nDataRcvLen >= nDataRailLen || nDataLen == BUFF_LEN);
 		}
 	}
-	return pData ? m_pBuff : nullptr;
+	return bRet ? m_pBuff : nullptr;
 }
 
 char * CBingTodayImage::GetHttpData(LPSTR pHttp, int nLen, int &nDataLen)
