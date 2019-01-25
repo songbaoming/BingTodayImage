@@ -227,6 +227,7 @@ void CBingTodayImageDlg::CheckAutoRun()
 LRESULT CBingTodayImageDlg::OnTaskBarRestart(WPARAM wParam, LPARAM lParam)
 {
 	Shell_NotifyIcon(NIM_DELETE, &m_nid);
+	m_nid.uFlags &= ~NIF_INFO;
 	Shell_NotifyIcon(NIM_ADD, &m_nid);
 	return LRESULT();
 }
