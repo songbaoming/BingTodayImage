@@ -267,6 +267,7 @@ LRESULT CBingTodayImageDlg::OnGetBingImage(WPARAM wParam, LPARAM lParam)
 	m_nid.uTimeout = 1000;
 	_tcscpy_s(m_nid.szInfoTitle, TEXT("必应今日美图"));
 	_tcscpy_s(m_nid.szInfo, m_strImageDesc);
+	_tcscpy_s(m_nid.szTip, m_strImageDesc);
 	Shell_NotifyIcon(NIM_MODIFY, &m_nid);
 
 	SYSTEMTIME stm;
