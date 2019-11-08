@@ -42,6 +42,10 @@ bool CBingTodayImage::GetTodayImage(LPCTSTR lpszSavePath, bool bSetAsWallpaper /
 		"www.bing.com",
 		NULL
 	};
+	static PCSTR s_images = "images";
+	static PCSTR s_url = "url";
+	static PCSTR s_copyright = "copyright";
+
 	int i = 0;
 	while(s_pHost[i] && !ConnectBing(s_pHost[i])) ++i;
 	if(!s_pHost[i])
@@ -58,10 +62,14 @@ bool CBingTodayImage::GetTodayImage(LPCTSTR lpszSavePath, bool bSetAsWallpaper /
 	try {
 		rapidjson::Document doc;
 		doc.Parse(pData);
-		auto &images = doc["images"];
-		auto &arry = images[0];
-		auto url = arry["url"].GetString();
-		m_strDesc = arry["copyright"].GetString();
+		if (!doc.HasMember(s_images) || !doc[s_images].IsArray())
+			return false;
+		auto& image = (doc[s_images])[0];
+		if (!image.HasMember(s_url) || !image[s_url].IsString())
+			return false;
+		auto url = image[s_url].GetString();
+		if (image.HasMember(s_copyright) && image[s_copyright].IsString())
+			m_strDesc = image[s_copyright].GetString();
 		pHttp = HttpGet(url, nLen);
 		if (!pHttp)
 			return false;
